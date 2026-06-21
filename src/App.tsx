@@ -33,6 +33,10 @@ type Progress = {
   perfectRuns: number
   studyStreak: number
   lastPlayedDate: string | null
+  dailyDate: string | null
+  dailyQuizCount: number
+  dailyXp: number
+  dailyPerfectCount: number
   completedLessonIds: string[]
   lessonStars: Record<string, number>
 }
@@ -69,6 +73,10 @@ const defaultProgress: Progress = {
   perfectRuns: 0,
   studyStreak: 0,
   lastPlayedDate: null,
+  dailyDate: null,
+  dailyQuizCount: 0,
+  dailyXp: 0,
+  dailyPerfectCount: 0,
   completedLessonIds: [],
   lessonStars: {},
 }
@@ -105,6 +113,8 @@ function loadProgress(): Progress {
       : []
     const totalStars = Object.values(lessonStars).reduce((total, current) => total + current, 0)
     const derivedXp = totalStars * 40 + (Number(parsed.attempts) || 0) * 8
+    const today = getDateKey()
+    const hasTodayStats = parsed.dailyDate === today
 
     return {
       bestScore: Number(parsed.bestScore) || 0,
@@ -115,6 +125,10 @@ function loadProgress(): Progress {
       perfectRuns: Number(parsed.perfectRuns) || 0,
       studyStreak: Number(parsed.studyStreak) || 0,
       lastPlayedDate: typeof parsed.lastPlayedDate === 'string' ? parsed.lastPlayedDate : null,
+      dailyDate: hasTodayStats ? today : null,
+      dailyQuizCount: hasTodayStats ? Number(parsed.dailyQuizCount) || 0 : 0,
+      dailyXp: hasTodayStats ? Number(parsed.dailyXp) || 0 : 0,
+      dailyPerfectCount: hasTodayStats ? Number(parsed.dailyPerfectCount) || 0 : 0,
       lessonStars,
       completedLessonIds,
     }
@@ -147,6 +161,17 @@ function getNextStudyStreak(progress: Progress) {
   if (progress.lastPlayedDate === today) return Math.max(1, progress.studyStreak)
   if (progress.lastPlayedDate === getYesterdayKey()) return progress.studyStreak + 1
   return 1
+}
+
+function getTodayProgress(progress: Progress) {
+  const today = getDateKey()
+
+  return {
+    dailyDate: today,
+    dailyQuizCount: progress.dailyDate === today ? progress.dailyQuizCount : 0,
+    dailyXp: progress.dailyDate === today ? progress.dailyXp : 0,
+    dailyPerfectCount: progress.dailyDate === today ? progress.dailyPerfectCount : 0,
+  }
 }
 
 function getLevelStats(totalXp: number) {
@@ -280,6 +305,56 @@ function App() {
     lessonGroups.findIndex((lesson) => !progress.completedLessonIds.includes(lesson.id)),
   )
   const resultLevelStats = result ? getLevelStats(result.totalXpAfter) : null
+  const todayProgress = getTodayProgress(progress)
+  const dailyMissions = [
+    {
+      title: '오늘 퀴즈',
+      value: Math.min(todayProgress.dailyQuizCount, 1),
+      goal: 1,
+      unit: '회',
+      icon: '🎯',
+    },
+    {
+      title: '오늘 XP',
+      value: Math.min(todayProgress.dailyXp, 120),
+      goal: 120,
+      unit: 'XP',
+      icon: '⚡',
+    },
+    {
+      title: '완벽 완료',
+      value: Math.min(todayProgress.dailyPerfectCount, 1),
+      goal: 1,
+      unit: '회',
+      icon: '🏆',
+    },
+  ]
+  const achievements = [
+    {
+      title: '첫 퀴즈',
+      unlocked: progress.attempts >= 1,
+      value: `${Math.min(progress.attempts, 1)}/1`,
+      icon: '🎯',
+    },
+    {
+      title: '100단어 여정',
+      unlocked: learnedWordCount >= 100,
+      value: `${Math.min(learnedWordCount, 100)}/100`,
+      icon: '📚',
+    },
+    {
+      title: '연속 7개',
+      unlocked: progress.bestStreak >= 7,
+      value: `${Math.min(progress.bestStreak, 7)}/7`,
+      icon: '🔥',
+    },
+    {
+      title: '완벽 3회',
+      unlocked: progress.perfectRuns >= 3,
+      value: `${Math.min(progress.perfectRuns, 3)}/3`,
+      icon: '⭐',
+    },
+  ]
 
   function openLesson(index: number) {
     setSelectedLessonIndex(index)
@@ -365,6 +440,7 @@ function App() {
       nextLessonStars[selectedLesson.id] > 0 && !progress.completedLessonIds.includes(selectedLesson.id)
         ? [...progress.completedLessonIds, selectedLesson.id]
         : progress.completedLessonIds
+    const nextDailyProgress = getTodayProgress(progress)
 
     const nextProgress: Progress = {
       bestScore: Math.max(progress.bestScore, finalScore),
@@ -375,6 +451,10 @@ function App() {
       perfectRuns: progress.perfectRuns + (missedWords.length === 0 ? 1 : 0),
       studyStreak: getNextStudyStreak(progress),
       lastPlayedDate: getDateKey(),
+      dailyDate: nextDailyProgress.dailyDate,
+      dailyQuizCount: nextDailyProgress.dailyQuizCount + 1,
+      dailyXp: nextDailyProgress.dailyXp + xpEarned,
+      dailyPerfectCount: nextDailyProgress.dailyPerfectCount + (missedWords.length === 0 ? 1 : 0),
       completedLessonIds,
       lessonStars: nextLessonStars,
     }
@@ -490,6 +570,54 @@ function App() {
                 </div>
                 <span>연속 학습</span>
                 <strong>{progress.studyStreak}일</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="quest-panel" aria-label="오늘 미션과 배지">
+            <div className="quest-block">
+              <div className="section-heading">
+                <span>오늘 미션</span>
+                <strong>{dailyMissions.filter((mission) => mission.value >= mission.goal).length}/3 완료</strong>
+              </div>
+              <div className="mission-grid">
+                {dailyMissions.map((mission) => {
+                  const percent = Math.round((mission.value / mission.goal) * 100)
+                  const complete = mission.value >= mission.goal
+
+                  return (
+                    <div className={complete ? 'mission-card complete' : 'mission-card'} key={mission.title}>
+                      <span className="mission-icon" aria-hidden="true">
+                        {mission.icon}
+                      </span>
+                      <div>
+                        <strong>{mission.title}</strong>
+                        <span>
+                          {mission.value}/{mission.goal} {mission.unit}
+                        </span>
+                        <div className="mission-track" aria-label={`${mission.title} ${percent}%`}>
+                          <span style={{ width: `${Math.min(100, percent)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="quest-block">
+              <div className="section-heading">
+                <span>배지 컬렉션</span>
+                <strong>{achievements.filter((badge) => badge.unlocked).length}/{achievements.length}</strong>
+              </div>
+              <div className="badge-grid">
+                {achievements.map((badge) => (
+                  <div className={badge.unlocked ? 'badge-card unlocked' : 'badge-card'} key={badge.title}>
+                    <span aria-hidden="true">{badge.icon}</span>
+                    <strong>{badge.title}</strong>
+                    <small>{badge.value}</small>
+                  </div>
+                ))}
               </div>
             </div>
           </section>

@@ -244,15 +244,100 @@ const wordEmoji = Object.fromEntries(
   wordEmojiGroups.flatMap(([emoji, ids]) => ids.map((id) => [id, emoji])),
 ) as Record<string, string>
 
+const modifierEmoji: Record<string, string> = {
+  red: '🔴',
+  blue: '🔵',
+  yellow: '🟡',
+  green: '🟢',
+  black: '⚫',
+  white: '⚪',
+  pink: '🌸',
+  purple: '🟣',
+  brown: '🟤',
+  orange: '🟠',
+  big: '↗️',
+  small: '↘️',
+  fast: '💨',
+  slow: '🐌',
+  sleepy: '💤',
+  hungry: '😋',
+  friendly: '🤝',
+  wild: '🌿',
+  baby: '👶',
+  quiet: '🤫',
+  ride: '🛞',
+  drive: '🛞',
+  take: '🤲',
+  wait: '⏳',
+  board: '⬆️',
+  wash: '🧼',
+  fix: '🔧',
+  park: '🅿️',
+  find: '🔎',
+  miss: '❗',
+  kind: '💛',
+  busy: '⏱️',
+  helpful: '🆘',
+  brave: '🛡️',
+  careful: '👀',
+  smart: '🧠',
+  strong: '💪',
+  bright: '✨',
+  dark: '🌙',
+  round: '⭕',
+  tiny: '🔹',
+  giant: '🏔️',
+  moving: '➡️',
+  warm: '♨️',
+  cold: '🧊',
+  shiny: '💎',
+  kick: '🦵',
+  throw: '↗️',
+  catch: '🙌',
+  bounce: '🏀',
+  paint: '🎨',
+  draw: '✏️',
+  play: '▶️',
+  sing: '🎵',
+  build: '🧱',
+  show: '👁️',
+  tap: '👆',
+  click: '🖱️',
+  swipe: '↔️',
+  open: '↗️',
+  close: '↘️',
+  charge: '🔋',
+  watch: '👀',
+  send: '✉️',
+  save: '💾',
+  delete: '🗑️',
+}
+
+const toneColors = ['#ffcf33', '#8ec9ff', '#f8a6c1', '#a7e2b8', '#d9c4ff', '#ffd7a8']
+
+function hashText(text: string) {
+  return Array.from(text).reduce((total, char) => total + char.charCodeAt(0), 0)
+}
+
 function getVisual(word: StudyWord) {
   return word.icon ?? wordEmoji[word.id] ?? categoryEmoji[word.category]
+}
+
+function getModifierVisual(word: StudyWord) {
+  const tokens = word.word.split(/\s+/)
+  const modifier = tokens.find((token) => modifierEmoji[token])
+
+  return modifier ? modifierEmoji[modifier] : categoryEmoji[word.category]
 }
 
 export function WordScene({ word, compact = false }: WordSceneProps) {
   const category = categories[word.category]
   const emoji = getVisual(word)
+  const modifier = getModifierVisual(word)
+  const tone = toneColors[hashText(word.id) % toneColors.length]
   const style = {
     '--scene-accent': category.color,
+    '--scene-tone': tone,
   } as CSSProperties
 
   return (
@@ -262,13 +347,19 @@ export function WordScene({ word, compact = false }: WordSceneProps) {
       aria-label={`${word.meaning} 그림`}
       style={style}
     >
+      <span className="word-scene__grain" aria-hidden="true" />
       <div className="word-picture">
+        <span className="word-picture__ring" aria-hidden="true" />
         <span className="word-picture__halo" aria-hidden="true" />
         <span className="word-picture__emoji" aria-hidden="true">
           {emoji}
         </span>
+        <span className="word-picture__modifier" aria-hidden="true">
+          {modifier}
+        </span>
         <span className="word-picture__base" aria-hidden="true" />
       </div>
+      <span className="word-picture__glint" aria-hidden="true" />
       <span className="word-picture__chip">{category.shortLabel}</span>
     </div>
   )
