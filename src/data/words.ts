@@ -51,7 +51,7 @@ type LessonSeed = {
   words: readonly WordRow[]
 }
 
-export const targetWordCount = 1000
+export const targetWordCount = 1500
 
 export const categories: Record<
   WordCategory,
@@ -888,6 +888,136 @@ const digitalNouns = [
   { word: 'map', meaning: '지도', icon: '🗺️', category: 'place' },
 ] satisfies readonly ComboWord[]
 
+const healthActions = [
+  { word: 'wash', meaning: '씻기', title: '건강 씻기', description: '몸을 돌보는 쉬운 생활 표현' },
+  { word: 'dry', meaning: '말리기', title: '건강 말리기', description: '몸을 돌보는 쉬운 생활 표현' },
+  { word: 'brush', meaning: '닦기', title: '건강 닦기', description: '몸을 돌보는 쉬운 생활 표현' },
+  { word: 'cover', meaning: '가리기', title: '건강 가리기', description: '몸을 돌보는 쉬운 생활 표현' },
+  { word: 'check', meaning: '확인하기', title: '건강 확인', description: '아플 때 쓰는 쉬운 표현' },
+  { word: 'take', meaning: '먹기', title: '건강 먹기', description: '아플 때 쓰는 쉬운 표현' },
+  { word: 'use', meaning: '사용하기', title: '건강 사용', description: '아플 때 쓰는 쉬운 표현' },
+  { word: 'rest', meaning: '쉬게 하기', title: '건강 쉬기', description: '몸을 돌보는 쉬운 생활 표현' },
+  { word: 'call', meaning: '부르기', title: '건강 도움', description: '도움이 필요할 때 쓰는 표현' },
+  { word: 'visit', meaning: '방문하기', title: '건강 방문', description: '도움이 필요할 때 쓰는 표현' },
+] satisfies readonly ModifierWord[]
+
+const healthNouns = [
+  { word: 'hands', meaning: '손', icon: '🖐️', category: 'body' },
+  { word: 'face', meaning: '얼굴', icon: '🙂', category: 'body' },
+  { word: 'teeth', meaning: '이', icon: '🦷', category: 'body' },
+  { word: 'mouth', meaning: '입', icon: '👄', category: 'body' },
+  { word: 'hair', meaning: '머리카락', icon: '💇', category: 'body' },
+  { word: 'knee', meaning: '무릎', icon: '🦵', category: 'body' },
+  { word: 'finger', meaning: '손가락', icon: '☝️', category: 'body' },
+  { word: 'bandage', meaning: '밴드', icon: '🩹', category: 'body' },
+  { word: 'medicine', meaning: '약', icon: '💊', category: 'body' },
+  { word: 'thermometer', meaning: '체온계', icon: '🌡️', category: 'body' },
+] satisfies readonly ComboWord[]
+
+const shoppingActions = [
+  { word: 'buy', meaning: '사기', title: '가게에서 사기', description: '물건을 고르고 계산하는 표현' },
+  { word: 'pay for', meaning: '계산하기', title: '가게 계산', description: '물건을 고르고 계산하는 표현' },
+  { word: 'choose', meaning: '고르기', title: '가게 고르기', description: '비슷한 물건을 비교하는 표현' },
+  { word: 'find', meaning: '찾기', title: '가게 찾기', description: '비슷한 물건을 비교하는 표현' },
+  { word: 'count', meaning: '세기', title: '가게 숫자', description: '돈과 수량을 익히는 표현' },
+  { word: 'carry', meaning: '들기', title: '가게 들기', description: '장 본 물건을 옮기는 표현' },
+  { word: 'pack', meaning: '담기', title: '가게 담기', description: '장 본 물건을 옮기는 표현' },
+  { word: 'open', meaning: '열기', title: '가게 열기', description: '포장과 물건을 다루는 표현' },
+  { word: 'close', meaning: '닫기', title: '가게 닫기', description: '포장과 물건을 다루는 표현' },
+  { word: 'share', meaning: '나누기', title: '가게 나누기', description: '먹거리와 선물을 나누는 표현' },
+] satisfies readonly ModifierWord[]
+
+const shoppingNouns = [
+  { word: 'cart', meaning: '카트', icon: '🛒', category: 'place' },
+  { word: 'basket', meaning: '바구니', icon: '🧺', category: 'place' },
+  { word: 'coin', meaning: '동전', icon: '🪙', category: 'place' },
+  { word: 'ticket', meaning: '표', icon: '🎟️', category: 'place' },
+  { word: 'bread', meaning: '빵', icon: '🍞', category: 'food' },
+  { word: 'fruit', meaning: '과일', icon: '🍓', category: 'food' },
+  { word: 'milk', meaning: '우유', icon: '🥛', category: 'food' },
+  { word: 'candy', meaning: '사탕', icon: '🍬', category: 'food' },
+  { word: 'gift', meaning: '선물', icon: '🎁', category: 'feeling' },
+  { word: 'bag', meaning: '가방', icon: '🛍️', category: 'place' },
+] satisfies readonly ComboWord[]
+
+const cityActions = [
+  { word: 'visit', meaning: '방문하기', title: '도시 방문', description: '도시에서 자주 쓰는 장소 표현' },
+  { word: 'enter', meaning: '들어가기', title: '도시 입장', description: '도시에서 자주 쓰는 장소 표현' },
+  { word: 'leave', meaning: '나가기', title: '도시 나가기', description: '도시에서 자주 쓰는 장소 표현' },
+  { word: 'cross', meaning: '건너기', title: '도시 건너기', description: '길과 건물을 비교하는 표현' },
+  { word: 'wait at', meaning: '기다리기', title: '도시 기다리기', description: '길과 건물을 비교하는 표현' },
+  { word: 'meet at', meaning: '만나기', title: '도시 만나기', description: '약속 장소를 말하는 표현' },
+  { word: 'find', meaning: '찾기', title: '도시 찾기', description: '약속 장소를 말하는 표현' },
+  { word: 'clean', meaning: '청소하기', title: '도시 돌보기', description: '장소를 돌보는 표현' },
+  { word: 'pass', meaning: '지나가기', title: '도시 지나가기', description: '이동하며 보는 장소 표현' },
+  { word: 'look at', meaning: '보기', title: '도시 보기', description: '이동하며 보는 장소 표현' },
+] satisfies readonly ModifierWord[]
+
+const cityNouns = [
+  { word: 'museum', meaning: '박물관', icon: '🏛️', category: 'place' },
+  { word: 'station', meaning: '역', icon: '🚉', category: 'place' },
+  { word: 'hospital', meaning: '병원', icon: '🏥', category: 'place' },
+  { word: 'bank', meaning: '은행', icon: '🏦', category: 'place' },
+  { word: 'bridge', meaning: '다리', icon: '🌉', category: 'place' },
+  { word: 'street', meaning: '거리', icon: '🛣️', category: 'place' },
+  { word: 'market', meaning: '시장', icon: '🏪', category: 'place' },
+  { word: 'library', meaning: '도서관', icon: '📚', category: 'place' },
+  { word: 'post office', meaning: '우체국', icon: '📮', category: 'place' },
+  { word: 'playground', meaning: '놀이터', icon: '🛝', category: 'play' },
+] satisfies readonly ComboWord[]
+
+const outdoorActions = [
+  { word: 'explore', meaning: '탐험하기', title: '바깥 탐험', description: '밖에서 만나는 자연 표현' },
+  { word: 'collect', meaning: '모으기', title: '바깥 모으기', description: '밖에서 만나는 자연 표현' },
+  { word: 'watch', meaning: '관찰하기', title: '바깥 관찰', description: '자연을 자세히 보는 표현' },
+  { word: 'climb', meaning: '오르기', title: '바깥 오르기', description: '자연을 몸으로 느끼는 표현' },
+  { word: 'cross', meaning: '건너기', title: '바깥 건너기', description: '자연을 몸으로 느끼는 표현' },
+  { word: 'follow', meaning: '따라가기', title: '바깥 따라가기', description: '길과 방향을 익히는 표현' },
+  { word: 'plant', meaning: '심기', title: '바깥 심기', description: '자연을 돌보는 표현' },
+  { word: 'water', meaning: '물 주기', title: '바깥 물 주기', description: '자연을 돌보는 표현' },
+  { word: 'pick', meaning: '줍기', title: '바깥 줍기', description: '작은 것을 찾는 표현' },
+  { word: 'protect', meaning: '지키기', title: '바깥 지키기', description: '자연을 아끼는 표현' },
+] satisfies readonly ModifierWord[]
+
+const outdoorNouns = [
+  { word: 'trail', meaning: '오솔길', icon: '🥾', category: 'nature' },
+  { word: 'hill', meaning: '언덕', icon: '⛰️', category: 'nature' },
+  { word: 'river', meaning: '강', icon: '🏞️', category: 'nature' },
+  { word: 'leaf', meaning: '잎', icon: '🍃', category: 'nature' },
+  { word: 'seed', meaning: '씨앗', icon: '🌱', category: 'nature' },
+  { word: 'garden', meaning: '정원', icon: '🪴', category: 'nature' },
+  { word: 'tent', meaning: '텐트', icon: '⛺', category: 'nature' },
+  { word: 'campfire', meaning: '모닥불', icon: '🔥', category: 'nature' },
+  { word: 'beach', meaning: '해변', icon: '🏖️', category: 'nature' },
+  { word: 'shell', meaning: '조개껍데기', icon: '🐚', category: 'nature' },
+] satisfies readonly ComboWord[]
+
+const musicActions = [
+  { word: 'play', meaning: '연주하기', title: '음악 연주', description: '소리와 악기 표현을 함께 익혀요' },
+  { word: 'tap', meaning: '두드리기', title: '음악 두드리기', description: '소리와 악기 표현을 함께 익혀요' },
+  { word: 'shake', meaning: '흔들기', title: '음악 흔들기', description: '소리와 악기 표현을 함께 익혀요' },
+  { word: 'beat', meaning: '박자 치기', title: '음악 박자', description: '리듬을 느끼는 표현' },
+  { word: 'listen to', meaning: '듣기', title: '음악 듣기', description: '리듬을 느끼는 표현' },
+  { word: 'sing', meaning: '노래하기', title: '음악 노래', description: '노래와 소리를 말하는 표현' },
+  { word: 'record', meaning: '녹음하기', title: '음악 녹음', description: '노래와 소리를 말하는 표현' },
+  { word: 'practice', meaning: '연습하기', title: '음악 연습', description: '반복해서 익히는 표현' },
+  { word: 'tune', meaning: '조율하기', title: '음악 조율', description: '악기를 준비하는 표현' },
+  { word: 'carry', meaning: '들고 가기', title: '음악 들기', description: '악기를 옮기는 표현' },
+] satisfies readonly ModifierWord[]
+
+const musicNouns = [
+  { word: 'drum', meaning: '드럼', icon: '🥁', category: 'play' },
+  { word: 'piano', meaning: '피아노', icon: '🎹', category: 'play' },
+  { word: 'guitar', meaning: '기타', icon: '🎸', category: 'play' },
+  { word: 'violin', meaning: '바이올린', icon: '🎻', category: 'play' },
+  { word: 'flute', meaning: '플루트', icon: '🎵', category: 'play' },
+  { word: 'bell', meaning: '종', icon: '🔔', category: 'play' },
+  { word: 'microphone', meaning: '마이크', icon: '🎤', category: 'play' },
+  { word: 'speaker', meaning: '스피커', icon: '🔊', category: 'class' },
+  { word: 'song', meaning: '노래', icon: '🎶', category: 'play' },
+  { word: 'rhythm', meaning: '리듬', icon: '🎼', category: 'play' },
+] satisfies readonly ComboWord[]
+
 const generatedLessonSeeds = [
   ...makeModifierLessons('color', 'class', colorModifiers, colorNouns, (modifier, noun) => ({
     word: `${modifier.word} ${noun.word}`,
@@ -928,6 +1058,41 @@ const generatedLessonSeeds = [
     kind: 'action',
   })),
   ...makeModifierLessons('digital', 'class', digitalActions, digitalNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('health', 'body', healthActions, healthNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('shopping', 'place', shoppingActions, shoppingNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('city', 'place', cityActions, cityNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('outdoor', 'nature', outdoorActions, outdoorNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('music', 'play', musicActions, musicNouns, (modifier, noun) => ({
     word: `${modifier.word} ${noun.word}`,
     meaning: `${noun.meaning} ${modifier.meaning}`,
     icon: noun.icon,

@@ -8,10 +8,15 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Crown,
   Flame,
+  Flag,
+  Gift,
   Home,
+  PartyPopper,
   Play,
   RotateCcw,
+  Sparkles,
   Star,
   Target,
   Trophy,
@@ -47,6 +52,13 @@ type QuizAnswer = {
   correct: boolean
 }
 
+type GoalMilestone = {
+  count: number
+  title: string
+  reward: string
+  icon: string
+}
+
 type ResultSummary = {
   lessonTitle: string
   correctCount: number
@@ -59,10 +71,20 @@ type ResultSummary = {
   totalXpAfter: number
   bestStreak: number
   missedWords: StudyWord[]
+  learnedBefore: number
+  learnedAfter: number
+  unlockedMilestones: GoalMilestone[]
 }
 
 const STORAGE_KEY = 'eword-progress-v1'
 const XP_PER_LEVEL = 140
+const goalMilestones: GoalMilestone[] = [
+  { count: 100, title: '첫 100개', reward: '시작 배지', icon: '🔑' },
+  { count: 300, title: '300개 돌파', reward: '반짝 별', icon: '⭐' },
+  { count: 600, title: '600개 고지', reward: '금빛 리본', icon: '🎗️' },
+  { count: 1000, title: '1000개 기록', reward: '챔피언 컵', icon: '🏆' },
+  { count: targetWordCount, title: `${targetWordCount}개 완성`, reward: '왕관 배지', icon: '👑' },
+]
 
 const defaultProgress: Progress = {
   bestScore: 0,
@@ -247,6 +269,18 @@ function getEarnedXp(correctCount: number, stars: number, bestStreak: number, mi
   return correctCount * 12 + stars * 25 + Math.min(bestStreak, 10) * 4 + (missedCount === 0 ? 30 : 0)
 }
 
+function getLearnedWordCount(completedLessonIds: string[]) {
+  return Math.min(targetWordCount, completedLessonIds.length * 10)
+}
+
+function getNextGoalMilestone(learnedWordCount: number) {
+  return goalMilestones.find((milestone) => learnedWordCount < milestone.count) ?? null
+}
+
+function getUnlockedGoalMilestones(before: number, after: number) {
+  return goalMilestones.filter((milestone) => before < milestone.count && after >= milestone.count)
+}
+
 function App() {
   const [mode, setMode] = useState<AppMode>('home')
   const [selectedLessonIndex, setSelectedLessonIndex] = useState(0)
@@ -307,8 +341,11 @@ function App() {
   const selectedAnswer = selectedOptionId ? wordById.get(selectedOptionId) : null
   const isCorrect = answered && selectedOptionId === currentQuizWord?.id
   const levelStats = getLevelStats(progress.totalXp)
-  const learnedWordCount = Math.min(targetWordCount, progress.completedLessonIds.length * 10)
+  const learnedWordCount = getLearnedWordCount(progress.completedLessonIds)
   const completionPercent = Math.round((learnedWordCount / targetWordCount) * 100)
+  const nextGoalMilestone = getNextGoalMilestone(learnedWordCount)
+  const nextGoalRemaining = nextGoalMilestone ? nextGoalMilestone.count - learnedWordCount : 0
+  const reachedMilestoneCount = goalMilestones.filter((milestone) => learnedWordCount >= milestone.count).length
   const starAccuracy =
     progress.completedLessonIds.length > 0
       ? Math.round((progress.totalStars / (progress.completedLessonIds.length * 3)) * 100)
@@ -354,6 +391,24 @@ function App() {
       unlocked: learnedWordCount >= 100,
       value: `${Math.min(learnedWordCount, 100)}/100`,
       icon: '📚',
+    },
+    {
+      title: '500단어 질주',
+      unlocked: learnedWordCount >= 500,
+      value: `${Math.min(learnedWordCount, 500)}/500`,
+      icon: '🚀',
+    },
+    {
+      title: '1000단어 기록',
+      unlocked: learnedWordCount >= 1000,
+      value: `${Math.min(learnedWordCount, 1000)}/1000`,
+      icon: '🏆',
+    },
+    {
+      title: `${targetWordCount}개 완성`,
+      unlocked: learnedWordCount >= targetWordCount,
+      value: `${learnedWordCount}/${targetWordCount}`,
+      icon: '👑',
     },
     {
       title: '연속 7개',
@@ -430,6 +485,18 @@ function App() {
     const xpEarned = getEarnedXp(finalCorrectCount, stars, bestStreak, missedWords.length)
     const totalXpAfter = progress.totalXp + xpEarned
     const levelAfter = getLevelStats(totalXpAfter).level
+    const nextLessonStars = {
+      ...progress.lessonStars,
+      [selectedLesson.id]: Math.max(progress.lessonStars[selectedLesson.id] ?? 0, stars),
+    }
+    const completedLessonIds =
+      nextLessonStars[selectedLesson.id] > 0 && !progress.completedLessonIds.includes(selectedLesson.id)
+        ? [...progress.completedLessonIds, selectedLesson.id]
+        : progress.completedLessonIds
+    const learnedBefore = getLearnedWordCount(progress.completedLessonIds)
+    const learnedAfter = getLearnedWordCount(completedLessonIds)
+    const unlockedMilestones = getUnlockedGoalMilestones(learnedBefore, learnedAfter)
+    const nextDailyProgress = getTodayProgress(progress)
 
     const nextResult: ResultSummary = {
       lessonTitle: selectedLesson.title,
@@ -443,17 +510,10 @@ function App() {
       totalXpAfter,
       bestStreak,
       missedWords,
+      learnedBefore,
+      learnedAfter,
+      unlockedMilestones,
     }
-
-    const nextLessonStars = {
-      ...progress.lessonStars,
-      [selectedLesson.id]: Math.max(progress.lessonStars[selectedLesson.id] ?? 0, stars),
-    }
-    const completedLessonIds =
-      nextLessonStars[selectedLesson.id] > 0 && !progress.completedLessonIds.includes(selectedLesson.id)
-        ? [...progress.completedLessonIds, selectedLesson.id]
-        : progress.completedLessonIds
-    const nextDailyProgress = getTodayProgress(progress)
 
     const nextProgress: Progress = {
       bestScore: Math.max(progress.bestScore, finalScore),
@@ -584,6 +644,61 @@ function App() {
                 <span>연속 학습</span>
                 <strong>{progress.studyStreak}일</strong>
               </div>
+            </div>
+          </section>
+
+          <section
+            className={learnedWordCount >= targetWordCount ? 'goal-panel goal-panel--complete' : 'goal-panel'}
+            aria-label="목표 달성 지도"
+          >
+            <div className="goal-copy">
+              <div className="section-heading">
+                <span>목표 지도</span>
+                <strong>
+                  {reachedMilestoneCount}/{goalMilestones.length} 보상
+                </strong>
+              </div>
+              <h2>
+                {nextGoalMilestone
+                  ? `${nextGoalMilestone.title}까지 ${nextGoalRemaining}개`
+                  : `${targetWordCount}개 목표 완성`}
+              </h2>
+              <div className="goal-meter" aria-label={`전체 목표 진행률 ${completionPercent}%`}>
+                <span style={{ width: `${completionPercent}%` }} />
+              </div>
+              <p>
+                {learnedWordCount}/{targetWordCount}개 · 완료한 단계마다 목표 지도에 10개씩 채워집니다.
+              </p>
+            </div>
+
+            <div className="goal-prize">
+              {nextGoalMilestone ? <Gift size={30} /> : <Crown size={32} />}
+              <span>{nextGoalMilestone ? '다음 보상' : '완성 보상'}</span>
+              <strong>{nextGoalMilestone?.reward ?? '왕관 배지'}</strong>
+            </div>
+
+            <div className="goal-milestones" aria-label="목표 보상 단계">
+              {goalMilestones.map((milestone) => {
+                const reached = learnedWordCount >= milestone.count
+                const current = nextGoalMilestone?.count === milestone.count
+
+                return (
+                  <div
+                    className={[
+                      'goal-milestone',
+                      reached ? 'goal-milestone--reached' : '',
+                      current ? 'goal-milestone--current' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    key={milestone.count}
+                  >
+                    <span aria-hidden="true">{milestone.icon}</span>
+                    <strong>{milestone.count}</strong>
+                    <small>{milestone.title}</small>
+                  </div>
+                )
+              })}
             </div>
           </section>
 
@@ -916,6 +1031,48 @@ function App() {
               </div>
             </section>
           )}
+
+          <section
+            className={
+              result.unlockedMilestones.length > 0
+                ? 'result-goal-panel result-goal-panel--celebrate'
+                : 'result-goal-panel'
+            }
+            aria-label="목표 달성 진행"
+          >
+            <div className="result-goal-head">
+              <div className="result-goal-icon">
+                {result.unlockedMilestones.length > 0 ? <PartyPopper size={28} /> : <Flag size={28} />}
+              </div>
+              <div>
+                <span>{result.learnedAfter > result.learnedBefore ? '+10 단어' : '목표 진행'}</span>
+                <h2>
+                  {result.learnedAfter}/{targetWordCount}개
+                </h2>
+              </div>
+            </div>
+            <div className="goal-meter" aria-label={`전체 목표 진행률 ${Math.round((result.learnedAfter / targetWordCount) * 100)}%`}>
+              <span style={{ width: `${Math.round((result.learnedAfter / targetWordCount) * 100)}%` }} />
+            </div>
+            {result.unlockedMilestones.length > 0 ? (
+              <div className="goal-unlocks">
+                {result.unlockedMilestones.map((milestone) => (
+                  <div className="goal-unlock" key={milestone.count}>
+                    <Sparkles size={18} />
+                    <span aria-hidden="true">{milestone.icon}</span>
+                    <strong>{milestone.title}</strong>
+                    <small>{milestone.reward}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>
+                다음 목표까지{' '}
+                {Math.max(0, (getNextGoalMilestone(result.learnedAfter)?.count ?? targetWordCount) - result.learnedAfter)}
+                개 남았습니다.
+              </p>
+            )}
+          </section>
 
           {result.missedWords.length > 0 ? (
             <section className="missed-panel" aria-label="다시 볼 단어">
