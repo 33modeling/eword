@@ -17,6 +17,7 @@ export type StudyWord = {
   phrase: string
   koreanHint: string
   cheer: string
+  icon?: string
 }
 
 type WordKind =
@@ -40,6 +41,7 @@ type WordRow = readonly [
   category: WordCategory,
   kind: WordKind,
   koreanHint?: string,
+  icon?: string,
 ]
 
 type LessonSeed = {
@@ -49,7 +51,7 @@ type LessonSeed = {
   words: readonly WordRow[]
 }
 
-export const targetWordCount = 300
+export const targetWordCount = 1000
 
 export const categories: Record<
   WordCategory,
@@ -641,9 +643,304 @@ const lessonSeeds = [
   },
 ] satisfies readonly LessonSeed[]
 
-export const studyWords: StudyWord[] = lessonSeeds.flatMap((lesson, lessonIndex) =>
+type ComboWord = {
+  word: string
+  meaning: string
+  icon: string
+  category?: WordCategory
+  kind?: WordKind
+}
+
+type ModifierWord = {
+  word: string
+  meaning: string
+  title: string
+  description: string
+}
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function buildGeneratedLesson(
+  id: string,
+  title: string,
+  description: string,
+  category: WordCategory,
+  words: ComboWord[],
+): LessonSeed {
+  return {
+    id,
+    title,
+    description,
+    words: words.map((word, index) => [
+      `${id}-${slugify(word.word) || index}`,
+      word.word,
+      word.meaning,
+      word.category ?? category,
+      word.kind ?? 'thing',
+      undefined,
+      word.icon,
+    ]),
+  }
+}
+
+function makeModifierLessons(
+  prefix: string,
+  category: WordCategory,
+  modifiers: readonly ModifierWord[],
+  nouns: readonly ComboWord[],
+  wordJoiner: (modifier: ModifierWord, noun: ComboWord) => ComboWord,
+) {
+  return modifiers.map((modifier) =>
+    buildGeneratedLesson(
+      `${prefix}-${slugify(modifier.word)}`,
+      modifier.title,
+      modifier.description,
+      category,
+      nouns.slice(0, 10).map((noun) => wordJoiner(modifier, noun)),
+    ),
+  )
+}
+
+const colorModifiers = [
+  { word: 'red', meaning: '빨간', title: '빨간 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'blue', meaning: '파란', title: '파란 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'yellow', meaning: '노란', title: '노란 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'green', meaning: '초록', title: '초록 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'black', meaning: '검은', title: '검은 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'white', meaning: '하얀', title: '하얀 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'pink', meaning: '분홍', title: '분홍 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'purple', meaning: '보라', title: '보라 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'brown', meaning: '갈색', title: '갈색 물건', description: '색과 사물을 함께 보는 카드' },
+  { word: 'orange', meaning: '주황', title: '주황 물건', description: '색과 사물을 함께 보는 카드' },
+] satisfies readonly ModifierWord[]
+
+const colorNouns = [
+  { word: 'apple', meaning: '사과', icon: '🍎', category: 'food' },
+  { word: 'ball', meaning: '공', icon: '⚽', category: 'play' },
+  { word: 'car', meaning: '자동차', icon: '🚗', category: 'place' },
+  { word: 'cup', meaning: '컵', icon: '☕', category: 'food' },
+  { word: 'bag', meaning: '가방', icon: '🎒', category: 'place' },
+  { word: 'book', meaning: '책', icon: '📚', category: 'class' },
+  { word: 'hat', meaning: '모자', icon: '🧢', category: 'body' },
+  { word: 'flower', meaning: '꽃', icon: '🌷', category: 'nature' },
+  { word: 'chair', meaning: '의자', icon: '🪑', category: 'place' },
+  { word: 'star', meaning: '별', icon: '⭐', category: 'nature' },
+] satisfies readonly ComboWord[]
+
+const animalModifiers = [
+  { word: 'big', meaning: '큰', title: '큰 동물', description: '동물과 크기 표현을 함께 익혀요' },
+  { word: 'small', meaning: '작은', title: '작은 동물', description: '동물과 크기 표현을 함께 익혀요' },
+  { word: 'fast', meaning: '빠른', title: '빠른 동물', description: '동물과 속도 표현을 함께 익혀요' },
+  { word: 'slow', meaning: '느린', title: '느린 동물', description: '동물과 속도 표현을 함께 익혀요' },
+  { word: 'sleepy', meaning: '졸린', title: '졸린 동물', description: '동물과 상태 표현을 함께 익혀요' },
+  { word: 'hungry', meaning: '배고픈', title: '배고픈 동물', description: '동물과 상태 표현을 함께 익혀요' },
+  { word: 'friendly', meaning: '친절한', title: '친절한 동물', description: '동물과 성격 표현을 함께 익혀요' },
+  { word: 'wild', meaning: '야생의', title: '야생 동물', description: '동물과 성격 표현을 함께 익혀요' },
+  { word: 'baby', meaning: '아기', title: '아기 동물', description: '동물과 가족 표현을 함께 익혀요' },
+  { word: 'quiet', meaning: '조용한', title: '조용한 동물', description: '동물과 소리 표현을 함께 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const animalNouns = [
+  { word: 'dog', meaning: '강아지', icon: '🐶', category: 'nature' },
+  { word: 'cat', meaning: '고양이', icon: '🐱', category: 'nature' },
+  { word: 'bird', meaning: '새', icon: '🐦', category: 'nature' },
+  { word: 'fish', meaning: '물고기', icon: '🐟', category: 'nature' },
+  { word: 'duck', meaning: '오리', icon: '🦆', category: 'nature' },
+  { word: 'rabbit', meaning: '토끼', icon: '🐰', category: 'nature' },
+  { word: 'frog', meaning: '개구리', icon: '🐸', category: 'nature' },
+  { word: 'bee', meaning: '벌', icon: '🐝', category: 'nature' },
+  { word: 'butterfly', meaning: '나비', icon: '🦋', category: 'nature' },
+  { word: 'turtle', meaning: '거북이', icon: '🐢', category: 'nature' },
+] satisfies readonly ComboWord[]
+
+const transportActions = [
+  { word: 'ride', meaning: '타기', title: '탈것 타기', description: 'ride와 탈것 단어를 함께 익혀요' },
+  { word: 'drive', meaning: '운전하기', title: '탈것 운전', description: 'drive와 탈것 단어를 함께 익혀요' },
+  { word: 'take', meaning: '이용하기', title: '탈것 이용', description: 'take와 탈것 단어를 함께 익혀요' },
+  { word: 'wait for', meaning: '기다리기', title: '탈것 기다리기', description: '기다리는 상황을 익혀요' },
+  { word: 'board', meaning: '탑승하기', title: '탈것 탑승', description: 'board와 탈것 단어를 함께 익혀요' },
+  { word: 'wash', meaning: '씻기', title: '탈것 씻기', description: '탈것 관리 표현을 익혀요' },
+  { word: 'fix', meaning: '고치기', title: '탈것 고치기', description: '탈것 관리 표현을 익혀요' },
+  { word: 'park', meaning: '세우기', title: '탈것 세우기', description: 'park와 탈것 단어를 함께 익혀요' },
+  { word: 'find', meaning: '찾기', title: '탈것 찾기', description: 'find와 탈것 단어를 함께 익혀요' },
+  { word: 'miss', meaning: '놓치기', title: '탈것 놓치기', description: 'miss와 탈것 단어를 함께 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const transportNouns = [
+  { word: 'bus', meaning: '버스', icon: '🚌', category: 'place' },
+  { word: 'car', meaning: '자동차', icon: '🚗', category: 'place' },
+  { word: 'taxi', meaning: '택시', icon: '🚕', category: 'place' },
+  { word: 'train', meaning: '기차', icon: '🚆', category: 'place' },
+  { word: 'subway', meaning: '지하철', icon: '🚇', category: 'place' },
+  { word: 'bike', meaning: '자전거', icon: '🚲', category: 'play' },
+  { word: 'scooter', meaning: '킥보드', icon: '🛴', category: 'play' },
+  { word: 'airplane', meaning: '비행기', icon: '✈️', category: 'place' },
+  { word: 'boat', meaning: '배', icon: '⛵', category: 'place' },
+  { word: 'truck', meaning: '트럭', icon: '🚚', category: 'place' },
+] satisfies readonly ComboWord[]
+
+const jobModifiers = [
+  { word: 'kind', meaning: '친절한', title: '친절한 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'busy', meaning: '바쁜', title: '바쁜 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'helpful', meaning: '도와주는', title: '도와주는 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'brave', meaning: '용감한', title: '용감한 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'careful', meaning: '조심스러운', title: '조심스러운 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'happy', meaning: '기쁜', title: '기쁜 직업', description: '감정과 직업 단어를 함께 익혀요' },
+  { word: 'smart', meaning: '똑똑한', title: '똑똑한 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'strong', meaning: '힘센', title: '힘센 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'quiet', meaning: '조용한', title: '조용한 직업', description: '사람과 직업 단어를 함께 익혀요' },
+  { word: 'friendly', meaning: '다정한', title: '다정한 직업', description: '사람과 직업 단어를 함께 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const jobNouns = [
+  { word: 'teacher', meaning: '선생님', icon: '🧑‍🏫', category: 'class' },
+  { word: 'doctor', meaning: '의사', icon: '🧑‍⚕️', category: 'body' },
+  { word: 'nurse', meaning: '간호사', icon: '👩‍⚕️', category: 'body' },
+  { word: 'chef', meaning: '요리사', icon: '🧑‍🍳', category: 'food' },
+  { word: 'farmer', meaning: '농부', icon: '🧑‍🌾', category: 'nature' },
+  { word: 'driver', meaning: '운전기사', icon: '🧑‍✈️', category: 'place' },
+  { word: 'artist', meaning: '화가', icon: '🧑‍🎨', category: 'class' },
+  { word: 'singer', meaning: '가수', icon: '🎤', category: 'play' },
+  { word: 'builder', meaning: '건축가', icon: '👷', category: 'place' },
+  { word: 'firefighter', meaning: '소방관', icon: '🧑‍🚒', category: 'place' },
+] satisfies readonly ComboWord[]
+
+const scienceModifiers = [
+  { word: 'bright', meaning: '밝은', title: '밝은 과학', description: '과학과 자연 단어를 함께 익혀요' },
+  { word: 'dark', meaning: '어두운', title: '어두운 과학', description: '과학과 자연 단어를 함께 익혀요' },
+  { word: 'round', meaning: '둥근', title: '둥근 과학', description: '모양과 과학 단어를 함께 익혀요' },
+  { word: 'tiny', meaning: '아주 작은', title: '작은 과학', description: '크기와 과학 단어를 함께 익혀요' },
+  { word: 'giant', meaning: '거대한', title: '큰 과학', description: '크기와 과학 단어를 함께 익혀요' },
+  { word: 'moving', meaning: '움직이는', title: '움직이는 과학', description: '움직임과 과학 단어를 함께 익혀요' },
+  { word: 'quiet', meaning: '조용한', title: '조용한 과학', description: '상태와 과학 단어를 함께 익혀요' },
+  { word: 'warm', meaning: '따뜻한', title: '따뜻한 과학', description: '온도와 과학 단어를 함께 익혀요' },
+  { word: 'cold', meaning: '차가운', title: '차가운 과학', description: '온도와 과학 단어를 함께 익혀요' },
+  { word: 'shiny', meaning: '반짝이는', title: '반짝이는 과학', description: '보이는 느낌과 과학 단어를 함께 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const scienceNouns = [
+  { word: 'planet', meaning: '행성', icon: '🪐', category: 'nature' },
+  { word: 'star', meaning: '별', icon: '⭐', category: 'nature' },
+  { word: 'moon', meaning: '달', icon: '🌙', category: 'nature' },
+  { word: 'rocket', meaning: '로켓', icon: '🚀', category: 'nature' },
+  { word: 'cloud', meaning: '구름', icon: '☁️', category: 'nature' },
+  { word: 'rainbow', meaning: '무지개', icon: '🌈', category: 'nature' },
+  { word: 'rock', meaning: '돌', icon: '🪨', category: 'nature' },
+  { word: 'magnet', meaning: '자석', icon: '🧲', category: 'class' },
+  { word: 'battery', meaning: '건전지', icon: '🔋', category: 'class' },
+  { word: 'robot', meaning: '로봇', icon: '🤖', category: 'class' },
+] satisfies readonly ComboWord[]
+
+const creativeActions = [
+  { word: 'kick', meaning: '차기', title: '스포츠 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'throw', meaning: '던지기', title: '던지기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'catch', meaning: '잡기', title: '잡기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'bounce', meaning: '튀기기', title: '튀기기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'paint', meaning: '칠하기', title: '그림 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'draw', meaning: '그리기', title: '그리기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'play', meaning: '연주하기', title: '연주 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'sing', meaning: '노래하기', title: '노래 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'build', meaning: '만들기', title: '만들기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+  { word: 'show', meaning: '보여주기', title: '보여주기 동작', description: '스포츠와 예술 동작을 함께 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const creativeNouns = [
+  { word: 'ball', meaning: '공', icon: '⚽', category: 'play' },
+  { word: 'hoop', meaning: '골대', icon: '🏀', category: 'play' },
+  { word: 'bat', meaning: '배트', icon: '🏏', category: 'play' },
+  { word: 'net', meaning: '그물', icon: '🥅', category: 'play' },
+  { word: 'picture', meaning: '그림', icon: '🖼️', category: 'class' },
+  { word: 'song', meaning: '노래', icon: '🎵', category: 'play' },
+  { word: 'drum', meaning: '드럼', icon: '🥁', category: 'play' },
+  { word: 'piano', meaning: '피아노', icon: '🎹', category: 'play' },
+  { word: 'tower', meaning: '탑', icon: '🧱', category: 'play' },
+  { word: 'stage', meaning: '무대', icon: '🎭', category: 'play' },
+] satisfies readonly ComboWord[]
+
+const digitalActions = [
+  { word: 'tap', meaning: '톡 누르기', title: '디지털 누르기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'click', meaning: '클릭하기', title: '디지털 클릭', description: '기기와 생활 표현을 익혀요' },
+  { word: 'swipe', meaning: '밀어 넘기기', title: '디지털 넘기기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'open', meaning: '열기', title: '디지털 열기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'close', meaning: '닫기', title: '디지털 닫기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'charge', meaning: '충전하기', title: '디지털 충전', description: '기기와 생활 표현을 익혀요' },
+  { word: 'watch', meaning: '보기', title: '디지털 보기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'send', meaning: '보내기', title: '디지털 보내기', description: '기기와 생활 표현을 익혀요' },
+  { word: 'save', meaning: '저장하기', title: '디지털 저장', description: '기기와 생활 표현을 익혀요' },
+  { word: 'delete', meaning: '지우기', title: '디지털 지우기', description: '기기와 생활 표현을 익혀요' },
+] satisfies readonly ModifierWord[]
+
+const digitalNouns = [
+  { word: 'phone', meaning: '휴대폰', icon: '📱', category: 'class' },
+  { word: 'tablet', meaning: '태블릿', icon: '📱', category: 'class' },
+  { word: 'computer', meaning: '컴퓨터', icon: '💻', category: 'class' },
+  { word: 'screen', meaning: '화면', icon: '🖥️', category: 'class' },
+  { word: 'button', meaning: '버튼', icon: '🔘', category: 'class' },
+  { word: 'camera', meaning: '카메라', icon: '📷', category: 'class' },
+  { word: 'photo', meaning: '사진', icon: '🖼️', category: 'class' },
+  { word: 'message', meaning: '메시지', icon: '💬', category: 'class' },
+  { word: 'game', meaning: '게임', icon: '🎮', category: 'play' },
+  { word: 'map', meaning: '지도', icon: '🗺️', category: 'place' },
+] satisfies readonly ComboWord[]
+
+const generatedLessonSeeds = [
+  ...makeModifierLessons('color', 'class', colorModifiers, colorNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${modifier.meaning} ${noun.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+  })),
+  ...makeModifierLessons('animal', 'nature', animalModifiers, animalNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${modifier.meaning} ${noun.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+  })),
+  ...makeModifierLessons('transport', 'place', transportActions, transportNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('job', 'feeling', jobModifiers, jobNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${modifier.meaning} ${noun.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+  })),
+  ...makeModifierLessons('science', 'nature', scienceModifiers, scienceNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${modifier.meaning} ${noun.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+  })),
+  ...makeModifierLessons('creative', 'play', creativeActions, creativeNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+  ...makeModifierLessons('digital', 'class', digitalActions, digitalNouns, (modifier, noun) => ({
+    word: `${modifier.word} ${noun.word}`,
+    meaning: `${noun.meaning} ${modifier.meaning}`,
+    icon: noun.icon,
+    category: noun.category,
+    kind: 'action',
+  })),
+] satisfies readonly LessonSeed[]
+
+const allLessonSeeds = [...lessonSeeds, ...generatedLessonSeeds].slice(0, targetWordCount / 10)
+
+export const studyWords: StudyWord[] = allLessonSeeds.flatMap((lesson, lessonIndex) =>
   lesson.words.map((row, wordIndex) => {
-    const [id, word, meaning, category, kind, koreanHint] = row as WordRow
+    const [id, word, meaning, category, kind, koreanHint, icon] = row as WordRow
 
     return {
       id,
@@ -653,11 +950,12 @@ export const studyWords: StudyWord[] = lessonSeeds.flatMap((lesson, lessonIndex)
       phrase: makePhrase(word, kind),
       koreanHint: koreanHint ?? makeHint(meaning, kind),
       cheer: cheers[(lessonIndex + wordIndex) % cheers.length],
+      icon,
     }
   }),
 )
 
-export const lessonGroups = lessonSeeds.map((lesson, index) => ({
+export const lessonGroups = allLessonSeeds.map((lesson, index) => ({
   id: lesson.id,
   title: lesson.title,
   badge: `${index + 1}단계`,

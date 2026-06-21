@@ -276,6 +276,136 @@ h2 {
   display: none;
 }
 
+.level-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.level-card,
+.status-ring-card,
+.reward-panel {
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.level-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+}
+
+.level-orb {
+  display: grid;
+  width: 106px;
+  height: 106px;
+  place-items: center;
+  align-content: center;
+  border: 2px solid #1f8a70;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 36%, #ffffff 0 30%, #eaf8f2 31% 100%);
+  color: #1f6f61;
+  box-shadow: 0 16px 28px rgba(31, 138, 112, 0.14);
+}
+
+.level-orb span {
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.level-orb strong {
+  font-size: 46px;
+  line-height: 0.95;
+}
+
+.level-copy {
+  min-width: 0;
+}
+
+.level-copy > span,
+.reward-main span {
+  color: #2f6d62;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.level-copy h2,
+.reward-main h2 {
+  margin-top: 4px;
+  font-size: clamp(22px, 3vw, 30px);
+}
+
+.level-copy p,
+.reward-main p {
+  margin-top: 8px;
+  color: #60746f;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.xp-track {
+  height: 13px;
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid #c8d8d0;
+  border-radius: 999px;
+  background: #f0f5f2;
+}
+
+.xp-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f8a70, #ffcf33);
+  transition: width 180ms ease;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-ring-card {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.status-ring {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #ffffff 0 55%, transparent 56%),
+    conic-gradient(#1f8a70 var(--status-value), #e5eee9 0);
+  color: #1f6f61;
+}
+
+.status-ring-card span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.status-ring-card strong {
+  color: #18312f;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .stat-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -313,6 +443,7 @@ h2 {
 }
 
 .lesson-card {
+  position: relative;
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 12px;
@@ -323,8 +454,31 @@ h2 {
   background: #ffffff;
 }
 
+.lesson-card--next {
+  border-color: #1f8a70;
+  box-shadow: 0 14px 30px rgba(31, 138, 112, 0.12);
+}
+
+.lesson-preview {
+  position: relative;
+}
+
 .lesson-preview .word-scene {
   box-shadow: none;
+}
+
+.next-ribbon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  padding: 5px 8px;
+  border: 1px solid #1f8a70;
+  border-radius: 8px;
+  background: #eaf8f2;
+  color: #1f6f61;
+  font-size: 12px;
+  font-weight: 950;
 }
 
 .lesson-content {
@@ -361,6 +515,28 @@ h2 {
   margin-top: 7px;
   color: #60746f;
   line-height: 1.45;
+}
+
+.lesson-stars {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  color: #f1b94d;
+}
+
+.lesson-progress {
+  height: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #edf3f0;
+}
+
+.lesson-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f8a70, #ffcf33);
 }
 
 .lesson-meta {
@@ -845,6 +1021,7 @@ button:focus-visible {
 
 @media (max-width: 980px) {
   .intro-band,
+  .level-panel,
   .study-layout,
   .quiz-layout {
     grid-template-columns: 1fr;
@@ -923,6 +1100,34 @@ button:focus-visible {
   .score-stack {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .level-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .level-copy {
+    width: 100%;
+  }
+
+  .status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .status-ring-card {
+    min-height: 122px;
+    padding: 10px 6px;
+  }
+
+  .status-ring {
+    width: 58px;
+    height: 58px;
+  }
+
+  .status-ring-card strong {
+    font-size: 17px;
   }
 
   .answer-option {

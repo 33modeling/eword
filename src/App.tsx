@@ -2,14 +2,18 @@ import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   ArrowRight,
+  Award,
+  BarChart3,
   BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
+  Flame,
   Home,
   Play,
   RotateCcw,
   Star,
+  Target,
   Trophy,
   Volume2,
   X,
@@ -22,8 +26,13 @@ type AppMode = 'home' | 'study' | 'quiz' | 'result'
 
 type Progress = {
   bestScore: number
+  bestStreak: number
   totalStars: number
+  totalXp: number
   attempts: number
+  perfectRuns: number
+  studyStreak: number
+  lastPlayedDate: string | null
   completedLessonIds: string[]
   lessonStars: Record<string, number>
 }
@@ -40,21 +49,43 @@ type ResultSummary = {
   totalCount: number
   stars: number
   score: number
+  xpEarned: number
+  levelBefore: number
+  levelAfter: number
+  totalXpAfter: number
   bestStreak: number
   missedWords: StudyWord[]
 }
 
 const STORAGE_KEY = 'eword-progress-v1'
+const XP_PER_LEVEL = 140
 
 const defaultProgress: Progress = {
   bestScore: 0,
+  bestStreak: 0,
   totalStars: 0,
+  totalXp: 0,
   attempts: 0,
+  perfectRuns: 0,
+  studyStreak: 0,
+  lastPlayedDate: null,
   completedLessonIds: [],
   lessonStars: {},
 }
 
 const lessonIds = new Set(lessonGroups.map((lesson) => lesson.id))
+const levelTitles = [
+  '첫 단어 탐험가',
+  '그림 단어 수집가',
+  '소리 단어 연습생',
+  '퀴즈 도전자',
+  '단어 별 모으기',
+  '영어 말문 열기',
+  '헷갈림 해결사',
+  '문장 준비생',
+  '단어 챔피언',
+  '영어 자신감 리더',
+]
 
 function loadProgress(): Progress {
   try {
@@ -72,11 +103,18 @@ function loadProgress(): Progress {
     const completedLessonIds = Array.isArray(parsed.completedLessonIds)
       ? parsed.completedLessonIds.filter((id): id is string => typeof id === 'string' && lessonIds.has(id))
       : []
+    const totalStars = Object.values(lessonStars).reduce((total, current) => total + current, 0)
+    const derivedXp = totalStars * 40 + (Number(parsed.attempts) || 0) * 8
 
     return {
       bestScore: Number(parsed.bestScore) || 0,
-      totalStars: Object.values(lessonStars).reduce((total, current) => total + current, 0),
+      bestStreak: Number(parsed.bestStreak) || 0,
+      totalStars,
+      totalXp: Number(parsed.totalXp) || derivedXp,
       attempts: Number(parsed.attempts) || 0,
+      perfectRuns: Number(parsed.perfectRuns) || 0,
+      studyStreak: Number(parsed.studyStreak) || 0,
+      lastPlayedDate: typeof parsed.lastPlayedDate === 'string' ? parsed.lastPlayedDate : null,
       lessonStars,
       completedLessonIds,
     }
@@ -87,6 +125,43 @@ function loadProgress(): Progress {
 
 function saveProgress(progress: Progress) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress))
+}
+
+function getDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function getYesterdayKey() {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  return getDateKey(yesterday)
+}
+
+function getNextStudyStreak(progress: Progress) {
+  const today = getDateKey()
+  if (progress.lastPlayedDate === today) return Math.max(1, progress.studyStreak)
+  if (progress.lastPlayedDate === getYesterdayKey()) return progress.studyStreak + 1
+  return 1
+}
+
+function getLevelStats(totalXp: number) {
+  const level = Math.floor(totalXp / XP_PER_LEVEL) + 1
+  const currentLevelXp = totalXp % XP_PER_LEVEL
+  const progressPercent = Math.round((currentLevelXp / XP_PER_LEVEL) * 100)
+  const title = levelTitles[Math.min(level - 1, levelTitles.length - 1)]
+
+  return {
+    level,
+    title,
+    currentLevelXp,
+    xpForLevel: XP_PER_LEVEL,
+    progressPercent,
+  }
 }
 
 function hashSeed(text: string) {
@@ -128,6 +203,10 @@ function getStars(correctCount: number, totalCount: number) {
   if (correctCount >= Math.ceil(totalCount * 0.75)) return 2
   if (correctCount >= Math.ceil(totalCount * 0.5)) return 1
   return 0
+}
+
+function getEarnedXp(correctCount: number, stars: number, bestStreak: number, missedCount: number) {
+  return correctCount * 12 + stars * 25 + Math.min(bestStreak, 10) * 4 + (missedCount === 0 ? 30 : 0)
 }
 
 function App() {
@@ -189,6 +268,18 @@ function App() {
   const answered = selectedOptionId !== null
   const selectedAnswer = selectedOptionId ? wordById.get(selectedOptionId) : null
   const isCorrect = answered && selectedOptionId === currentQuizWord?.id
+  const levelStats = getLevelStats(progress.totalXp)
+  const learnedWordCount = Math.min(targetWordCount, progress.completedLessonIds.length * 10)
+  const completionPercent = Math.round((learnedWordCount / targetWordCount) * 100)
+  const starAccuracy =
+    progress.completedLessonIds.length > 0
+      ? Math.round((progress.totalStars / (progress.completedLessonIds.length * 3)) * 100)
+      : 0
+  const nextLessonIndex = Math.max(
+    0,
+    lessonGroups.findIndex((lesson) => !progress.completedLessonIds.includes(lesson.id)),
+  )
+  const resultLevelStats = result ? getLevelStats(result.totalXpAfter) : null
 
   function openLesson(index: number) {
     setSelectedLessonIndex(index)
@@ -247,6 +338,10 @@ function App() {
       .filter((answer) => !answer.correct)
       .map((answer) => wordById.get(answer.wordId))
       .filter((word): word is StudyWord => Boolean(word))
+    const levelBefore = getLevelStats(progress.totalXp).level
+    const xpEarned = getEarnedXp(finalCorrectCount, stars, bestStreak, missedWords.length)
+    const totalXpAfter = progress.totalXp + xpEarned
+    const levelAfter = getLevelStats(totalXpAfter).level
 
     const nextResult: ResultSummary = {
       lessonTitle: selectedLesson.title,
@@ -254,6 +349,10 @@ function App() {
       totalCount,
       stars,
       score: finalScore,
+      xpEarned,
+      levelBefore,
+      levelAfter,
+      totalXpAfter,
       bestStreak,
       missedWords,
     }
@@ -269,8 +368,13 @@ function App() {
 
     const nextProgress: Progress = {
       bestScore: Math.max(progress.bestScore, finalScore),
+      bestStreak: Math.max(progress.bestStreak, bestStreak),
       totalStars: Object.values(nextLessonStars).reduce((total, current) => total + current, 0),
+      totalXp: totalXpAfter,
       attempts: progress.attempts + 1,
+      perfectRuns: progress.perfectRuns + (missedWords.length === 0 ? 1 : 0),
+      studyStreak: getNextStudyStreak(progress),
+      lastPlayedDate: getDateKey(),
       completedLessonIds,
       lessonStars: nextLessonStars,
     }
@@ -310,9 +414,9 @@ function App() {
             <span>그림으로 배우는 첫 영어</span>
           </div>
         </div>
-        <div className="score-pill" aria-label="누적 별">
-          <Star size={18} fill="currentColor" />
-          <strong>{progress.totalStars}</strong>
+        <div className="score-pill" aria-label={`레벨 ${levelStats.level}`}>
+          <Award size={18} />
+          <strong>Lv {levelStats.level}</strong>
         </div>
       </header>
 
@@ -336,6 +440,60 @@ function App() {
             </div>
           </div>
 
+          <section className="level-panel" aria-label="학습 레벨과 상태">
+            <div className="level-card">
+              <div className="level-orb">
+                <span>Lv</span>
+                <strong>{levelStats.level}</strong>
+              </div>
+              <div className="level-copy">
+                <span>{levelStats.title}</span>
+                <h2>다음 레벨까지 {levelStats.xpForLevel - levelStats.currentLevelXp} XP</h2>
+                <div className="xp-track" aria-label={`레벨 진행률 ${levelStats.progressPercent}%`}>
+                  <span style={{ width: `${levelStats.progressPercent}%` }} />
+                </div>
+                <p>
+                  {progress.totalXp} XP · 최고 연속 {progress.bestStreak}개 · 완벽 완료 {progress.perfectRuns}회
+                </p>
+              </div>
+            </div>
+
+            <div className="status-grid">
+              <div
+                className="status-ring-card"
+                style={{ '--status-value': `${completionPercent}%` } as CSSProperties}
+              >
+                <div className="status-ring">
+                  <Target size={24} />
+                </div>
+                <span>단어 여정</span>
+                <strong>
+                  {learnedWordCount}/{targetWordCount}
+                </strong>
+              </div>
+              <div
+                className="status-ring-card"
+                style={{ '--status-value': `${starAccuracy}%` } as CSSProperties}
+              >
+                <div className="status-ring">
+                  <BarChart3 size={24} />
+                </div>
+                <span>별 정확도</span>
+                <strong>{starAccuracy}%</strong>
+              </div>
+              <div
+                className="status-ring-card"
+                style={{ '--status-value': `${Math.min(100, progress.studyStreak * 14)}%` } as CSSProperties}
+              >
+                <div className="status-ring">
+                  <Flame size={24} />
+                </div>
+                <span>연속 학습</span>
+                <strong>{progress.studyStreak}일</strong>
+              </div>
+            </div>
+          </section>
+
           <section className="stat-row" aria-label="학습 기록">
             <div>
               <span>목표 단어</span>
@@ -358,20 +516,37 @@ function App() {
           <section className="lesson-grid" aria-label="학습 단계">
             {lessonGroups.map((lesson, index) => {
               const completed = progress.completedLessonIds.includes(lesson.id)
+              const lessonStarCount = progress.lessonStars[lesson.id] ?? 0
               const previewWord = wordById.get(lesson.words[0]) ?? studyWords[0]
 
               return (
-                <article className="lesson-card" key={lesson.id}>
+                <article
+                  className={index === nextLessonIndex && !completed ? 'lesson-card lesson-card--next' : 'lesson-card'}
+                  key={lesson.id}
+                >
                   <div className="lesson-preview">
                     <WordScene word={previewWord} compact />
+                    {index === nextLessonIndex && !completed && <span className="next-ribbon">추천</span>}
                   </div>
                   <div className="lesson-content">
                     <span className="lesson-badge">{lesson.badge}</span>
                     <h2>{lesson.title}</h2>
                     <p>{lesson.description}</p>
+                    <div className="lesson-stars" aria-label={`${lessonStarCount}개 별`}>
+                      {[0, 1, 2].map((starIndex) => (
+                        <Star
+                          key={starIndex}
+                          size={17}
+                          fill={starIndex < lessonStarCount ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                    <div className="lesson-progress" aria-hidden="true">
+                      <span style={{ width: `${(lessonStarCount / 3) * 100}%` }} />
+                    </div>
                     <div className="lesson-meta">
                       <span>{lesson.words.length}개 단어</span>
-                      <span>{completed ? '별 획득' : '새 도전'}</span>
+                      <span>{completed ? `${lessonStarCount}/3 별` : index === nextLessonIndex ? '추천 단계' : '새 도전'}</span>
                     </div>
                   </div>
                   <button className="primary-button" type="button" onClick={() => openLesson(index)}>
@@ -577,6 +752,29 @@ function App() {
               {result.correctCount}/{result.totalCount}개 정답 · 최고 연속 {result.bestStreak}개
             </p>
           </div>
+
+          {resultLevelStats && (
+            <section className="reward-panel" aria-label="획득 보상">
+              <div className="reward-main">
+                <div className="reward-badge">
+                  <Award size={28} />
+                  <strong>+{result.xpEarned} XP</strong>
+                </div>
+                <div>
+                  <span>{result.levelAfter > result.levelBefore ? '레벨업' : '레벨 진행'}</span>
+                  <h2>
+                    Lv {result.levelAfter} · {resultLevelStats.title}
+                  </h2>
+                  <div className="xp-track" aria-label={`레벨 진행률 ${resultLevelStats.progressPercent}%`}>
+                    <span style={{ width: `${resultLevelStats.progressPercent}%` }} />
+                  </div>
+                  <p>
+                    다음 레벨까지 {resultLevelStats.xpForLevel - resultLevelStats.currentLevelXp} XP 남았습니다.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {result.missedWords.length > 0 ? (
             <section className="missed-panel" aria-label="다시 볼 단어">

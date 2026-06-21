@@ -245,7 +245,7 @@ const wordEmoji = Object.fromEntries(
 ) as Record<string, string>
 
 function getVisual(word: StudyWord) {
-  return wordEmoji[word.id] ?? categoryEmoji[word.category]
+  return word.icon ?? wordEmoji[word.id] ?? categoryEmoji[word.category]
 }
 
 export function WordScene({ word, compact = false }: WordSceneProps) {
