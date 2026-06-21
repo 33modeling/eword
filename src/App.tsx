@@ -206,6 +206,19 @@ function shuffleWithSeed<T>(items: T[], seed: number) {
   return copy
 }
 
+function createQuizSeed() {
+  const timestampSeed = Date.now()
+
+  if ('crypto' in window && typeof window.crypto.getRandomValues === 'function') {
+    const randomValues = new Uint32Array(1)
+    window.crypto.getRandomValues(randomValues)
+
+    return (randomValues[0] ^ timestampSeed) >>> 0
+  }
+
+  return (Math.floor(Math.random() * 0xffffffff) ^ timestampSeed) >>> 0
+}
+
 function speak(text: string) {
   if (!('speechSynthesis' in window)) return
 
@@ -371,7 +384,7 @@ function App() {
   }
 
   function startQuiz() {
-    const seed = Date.now()
+    const seed = createQuizSeed()
     setQuizSeed(seed)
     setQuizWords(shuffleWithSeed(lessonWords, seed))
     setQuizIndex(0)
