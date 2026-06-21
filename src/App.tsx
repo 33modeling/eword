@@ -1,0 +1,596 @@
+import { useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
+import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Play,
+  RotateCcw,
+  Star,
+  Trophy,
+  Volume2,
+  X,
+} from 'lucide-react'
+import './App.css'
+import { WordScene } from './components/WordScene'
+import { categories, lessonGroups, studyWords, wordById, type StudyWord } from './data/words'
+
+type AppMode = 'home' | 'study' | 'quiz' | 'result'
+
+type Progress = {
+  bestScore: number
+  totalStars: number
+  attempts: number
+  completedLessonIds: string[]
+  lessonStars: Record<string, number>
+}
+
+type QuizAnswer = {
+  wordId: string
+  selectedId: string
+  correct: boolean
+}
+
+type ResultSummary = {
+  lessonTitle: string
+  correctCount: number
+  totalCount: number
+  stars: number
+  score: number
+  bestStreak: number
+  missedWords: StudyWord[]
+}
+
+const STORAGE_KEY = 'eword-progress-v1'
+
+const defaultProgress: Progress = {
+  bestScore: 0,
+  totalStars: 0,
+  attempts: 0,
+  completedLessonIds: [],
+  lessonStars: {},
+}
+
+function loadProgress(): Progress {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return defaultProgress
+    const parsed = JSON.parse(raw) as Partial<Progress>
+
+    return {
+      bestScore: Number(parsed.bestScore) || 0,
+      totalStars: Number(parsed.totalStars) || 0,
+      attempts: Number(parsed.attempts) || 0,
+      lessonStars:
+        parsed.lessonStars && typeof parsed.lessonStars === 'object' && !Array.isArray(parsed.lessonStars)
+          ? Object.fromEntries(
+              Object.entries(parsed.lessonStars).map(([key, value]) => [key, Number(value) || 0]),
+            )
+          : {},
+      completedLessonIds: Array.isArray(parsed.completedLessonIds)
+        ? parsed.completedLessonIds.filter((id): id is string => typeof id === 'string')
+        : [],
+    }
+  } catch {
+    return defaultProgress
+  }
+}
+
+function saveProgress(progress: Progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress))
+}
+
+function hashSeed(text: string) {
+  return Array.from(text).reduce((acc, char) => acc + char.charCodeAt(0), 2166136261)
+}
+
+function shuffleWithSeed<T>(items: T[], seed: number) {
+  const copy = [...items]
+  let value = seed || 1
+
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    value = (value * 1664525 + 1013904223) >>> 0
+    const swapIndex = value % (index + 1)
+    ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
+  }
+
+  return copy
+}
+
+function speak(text: string) {
+  if (!('speechSynthesis' in window)) return
+
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = 'en-US'
+  utterance.rate = 0.82
+  utterance.pitch = 1.06
+  window.speechSynthesis.speak(utterance)
+}
+
+function getLessonWords(lessonIndex: number) {
+  return lessonGroups[lessonIndex].words
+    .map((id) => wordById.get(id))
+    .filter((word): word is StudyWord => Boolean(word))
+}
+
+function getStars(correctCount: number, totalCount: number) {
+  if (correctCount === totalCount) return 3
+  if (correctCount >= Math.ceil(totalCount * 0.75)) return 2
+  if (correctCount >= Math.ceil(totalCount * 0.5)) return 1
+  return 0
+}
+
+function App() {
+  const [mode, setMode] = useState<AppMode>('home')
+  const [selectedLessonIndex, setSelectedLessonIndex] = useState(0)
+  const [studyIndex, setStudyIndex] = useState(0)
+  const [quizIndex, setQuizIndex] = useState(0)
+  const [quizSeed, setQuizSeed] = useState(1)
+  const [quizWords, setQuizWords] = useState<StudyWord[]>([])
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
+  const [score, setScore] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(0)
+  const [answers, setAnswers] = useState<QuizAnswer[]>([])
+  const [progress, setProgress] = useState(loadProgress)
+  const [result, setResult] = useState<ResultSummary | null>(null)
+
+  const selectedLesson = lessonGroups[selectedLessonIndex]
+  const lessonWords = useMemo(() => getLessonWords(selectedLessonIndex), [selectedLessonIndex])
+  const currentStudyWord = lessonWords[studyIndex]
+  const currentQuizWord = quizWords[quizIndex]
+  const quizOptions = useMemo(() => {
+    if (!currentQuizWord) return []
+
+    const sameGroup = studyWords.filter(
+      (word) => word.category === currentQuizWord.category && word.id !== currentQuizWord.id,
+    )
+    const otherWords = studyWords.filter(
+      (word) => word.category !== currentQuizWord.category && word.id !== currentQuizWord.id,
+    )
+    const wrongAnswers = shuffleWithSeed(
+      [...sameGroup, ...otherWords],
+      hashSeed(`${currentQuizWord.id}-${quizSeed}`),
+    ).slice(0, 3)
+
+    return shuffleWithSeed(
+      [currentQuizWord, ...wrongAnswers],
+      hashSeed(`${currentQuizWord.word}-${quizIndex}-${quizSeed}`),
+    )
+  }, [currentQuizWord, quizIndex, quizSeed])
+
+  const answered = selectedOptionId !== null
+  const selectedAnswer = selectedOptionId ? wordById.get(selectedOptionId) : null
+  const isCorrect = answered && selectedOptionId === currentQuizWord?.id
+
+  function openLesson(index: number) {
+    setSelectedLessonIndex(index)
+    setStudyIndex(0)
+    setResult(null)
+    setMode('study')
+  }
+
+  function goHome() {
+    setMode('home')
+    setStudyIndex(0)
+    setQuizIndex(0)
+    setSelectedOptionId(null)
+  }
+
+  function startQuiz() {
+    const seed = Date.now()
+    setQuizSeed(seed)
+    setQuizWords(shuffleWithSeed(lessonWords, seed))
+    setQuizIndex(0)
+    setSelectedOptionId(null)
+    setScore(0)
+    setStreak(0)
+    setBestStreak(0)
+    setAnswers([])
+    setMode('quiz')
+  }
+
+  function selectAnswer(option: StudyWord) {
+    if (answered || !currentQuizWord) return
+
+    const correct = option.id === currentQuizWord.id
+    const nextStreak = correct ? streak + 1 : 0
+    const earned = correct ? 10 + Math.min(streak, 4) * 2 : 0
+
+    setSelectedOptionId(option.id)
+    setStreak(nextStreak)
+    setBestStreak((current) => Math.max(current, nextStreak))
+    setScore((current) => current + earned)
+    setAnswers((current) => [
+      ...current,
+      { wordId: currentQuizWord.id, selectedId: option.id, correct },
+    ])
+
+    if (correct) {
+      speak(currentQuizWord.word)
+    }
+  }
+
+  function finishQuiz() {
+    const totalCount = quizWords.length
+    const finalCorrectCount = answers.filter((answer) => answer.correct).length
+    const stars = getStars(finalCorrectCount, totalCount)
+    const finalScore = score + stars * 10
+    const missedWords = answers
+      .filter((answer) => !answer.correct)
+      .map((answer) => wordById.get(answer.wordId))
+      .filter((word): word is StudyWord => Boolean(word))
+
+    const nextResult: ResultSummary = {
+      lessonTitle: selectedLesson.title,
+      correctCount: finalCorrectCount,
+      totalCount,
+      stars,
+      score: finalScore,
+      bestStreak,
+      missedWords,
+    }
+
+    const nextLessonStars = {
+      ...progress.lessonStars,
+      [selectedLesson.id]: Math.max(progress.lessonStars[selectedLesson.id] ?? 0, stars),
+    }
+    const completedLessonIds =
+      nextLessonStars[selectedLesson.id] > 0 && !progress.completedLessonIds.includes(selectedLesson.id)
+        ? [...progress.completedLessonIds, selectedLesson.id]
+        : progress.completedLessonIds
+
+    const nextProgress: Progress = {
+      bestScore: Math.max(progress.bestScore, finalScore),
+      totalStars: Object.values(nextLessonStars).reduce((total, current) => total + current, 0),
+      attempts: progress.attempts + 1,
+      completedLessonIds,
+      lessonStars: nextLessonStars,
+    }
+
+    setProgress(nextProgress)
+    saveProgress(nextProgress)
+    setResult(nextResult)
+    setMode('result')
+  }
+
+  function nextQuiz() {
+    if (!answered) return
+
+    if (quizIndex + 1 >= quizWords.length) {
+      finishQuiz()
+      return
+    }
+
+    setQuizIndex((current) => current + 1)
+    setSelectedOptionId(null)
+  }
+
+  function retryMissed() {
+    openLesson(selectedLessonIndex)
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <button className="icon-button" type="button" onClick={goHome} aria-label="처음으로">
+          <Home size={20} />
+        </button>
+        <div className="brand">
+          <span className="brand-mark">Aa</span>
+          <div>
+            <strong>Easy Words</strong>
+            <span>그림으로 배우는 첫 영어</span>
+          </div>
+        </div>
+        <div className="score-pill" aria-label="누적 별">
+          <Star size={18} fill="currentColor" />
+          <strong>{progress.totalStars}</strong>
+        </div>
+      </header>
+
+      {mode === 'home' && (
+        <section className="home-screen">
+          <div className="intro-band">
+            <div className="intro-copy">
+              <p className="eyebrow">6세 첫 영어 단어장</p>
+              <h1>보고, 듣고, 맞히는 단어 놀이</h1>
+              <p>
+                일상 동작 단어를 그림과 짧은 문장으로 먼저 익히고, 바로 4지선다 퀴즈로
+                기억을 확인합니다.
+              </p>
+            </div>
+            <div className="hero-stage" aria-hidden="true">
+              <WordScene word={studyWords[0]} compact />
+              <div className="hero-badge">
+                <Trophy size={19} />
+                최고 {progress.bestScore}점
+              </div>
+            </div>
+          </div>
+
+          <section className="stat-row" aria-label="학습 기록">
+            <div>
+              <span>완료 단계</span>
+              <strong>{progress.completedLessonIds.length}</strong>
+            </div>
+            <div>
+              <span>도전 횟수</span>
+              <strong>{progress.attempts}</strong>
+            </div>
+            <div>
+              <span>최고 점수</span>
+              <strong>{progress.bestScore}</strong>
+            </div>
+          </section>
+
+          <section className="lesson-grid" aria-label="학습 단계">
+            {lessonGroups.map((lesson, index) => {
+              const completed = progress.completedLessonIds.includes(lesson.id)
+              const previewWord = wordById.get(lesson.words[0]) ?? studyWords[0]
+
+              return (
+                <article className="lesson-card" key={lesson.id}>
+                  <div className="lesson-preview">
+                    <WordScene word={previewWord} compact />
+                  </div>
+                  <div className="lesson-content">
+                    <span className="lesson-badge">{lesson.badge}</span>
+                    <h2>{lesson.title}</h2>
+                    <p>{lesson.description}</p>
+                    <div className="lesson-meta">
+                      <span>{lesson.words.length}개 단어</span>
+                      <span>{completed ? '별 획득' : '새 도전'}</span>
+                    </div>
+                  </div>
+                  <button className="primary-button" type="button" onClick={() => openLesson(index)}>
+                    <Play size={18} fill="currentColor" />
+                    시작
+                  </button>
+                </article>
+              )
+            })}
+          </section>
+        </section>
+      )}
+
+      {mode === 'study' && currentStudyWord && (
+        <section className="study-screen">
+          <div className="stage-header">
+            <div>
+              <p className="eyebrow">{selectedLesson.badge} 암기</p>
+              <h1>{selectedLesson.title}</h1>
+            </div>
+            <div className="step-counter">
+              {studyIndex + 1}
+              <span>/{lessonWords.length}</span>
+            </div>
+          </div>
+
+          <div className="study-layout">
+            <article className="word-card">
+              <WordScene word={currentStudyWord} />
+              <div className="word-main">
+                <div>
+                  <span
+                    className="category-chip"
+                    style={{ '--chip-color': categories[currentStudyWord.category].color } as CSSProperties}
+                  >
+                    {categories[currentStudyWord.category].label}
+                  </span>
+                  <h2>{currentStudyWord.word}</h2>
+                  <p>{currentStudyWord.meaning}</p>
+                </div>
+                <button
+                  className="round-button"
+                  type="button"
+                  onClick={() => speak(currentStudyWord.word)}
+                  aria-label={`${currentStudyWord.word} 듣기`}
+                >
+                  <Volume2 size={24} />
+                </button>
+              </div>
+            </article>
+
+            <aside className="memory-panel">
+              <div className="sentence-box">
+                <span>문장</span>
+                <strong>{currentStudyWord.phrase}</strong>
+                <button type="button" onClick={() => speak(currentStudyWord.phrase)}>
+                  <Volume2 size={18} />
+                  듣기
+                </button>
+              </div>
+              <div className="hint-box">
+                <BookOpen size={22} />
+                <p>{currentStudyWord.koreanHint}</p>
+              </div>
+              <div className="mini-list" aria-label="이번 단계 단어">
+                {lessonWords.map((word, index) => (
+                  <button
+                    type="button"
+                    key={word.id}
+                    className={index === studyIndex ? 'active' : ''}
+                    onClick={() => setStudyIndex(index)}
+                  >
+                    {word.word}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+
+          <nav className="flow-actions" aria-label="암기 이동">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setStudyIndex((current) => Math.max(0, current - 1))}
+              disabled={studyIndex === 0}
+            >
+              <ChevronLeft size={19} />
+              이전
+            </button>
+            {studyIndex + 1 < lessonWords.length ? (
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => setStudyIndex((current) => current + 1)}
+              >
+                다음
+                <ChevronRight size={19} />
+              </button>
+            ) : (
+              <button className="primary-button primary-button--wide" type="button" onClick={startQuiz}>
+                퀴즈 시작
+                <ArrowRight size={19} />
+              </button>
+            )}
+          </nav>
+        </section>
+      )}
+
+      {mode === 'quiz' && currentQuizWord && (
+        <section className="quiz-screen">
+          <div className="quiz-status">
+            <div>
+              <p className="eyebrow">그림 퀴즈</p>
+              <h1>어떤 단어일까요?</h1>
+            </div>
+            <div className="score-stack">
+              <span>점수 {score}</span>
+              <span>연속 {streak}</span>
+            </div>
+          </div>
+
+          <div className="quiz-progress" aria-label="퀴즈 진행률">
+            <span style={{ width: `${((quizIndex + 1) / quizWords.length) * 100}%` }} />
+          </div>
+
+          <div className="quiz-layout">
+            <article className="quiz-picture">
+              <WordScene word={currentQuizWord} />
+              <p>{currentQuizWord.koreanHint}</p>
+            </article>
+
+            <div className="option-grid">
+              {quizOptions.map((option) => {
+                const selected = selectedOptionId === option.id
+                const correctOption = answered && option.id === currentQuizWord.id
+                const wrongSelected = selected && option.id !== currentQuizWord.id
+
+                return (
+                  <button
+                    type="button"
+                    key={option.id}
+                    className={[
+                      'answer-option',
+                      selected ? 'selected' : '',
+                      correctOption ? 'correct' : '',
+                      wrongSelected ? 'wrong' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => selectAnswer(option)}
+                    disabled={answered}
+                  >
+                    <span>{option.word}</span>
+                    <small>{option.meaning}</small>
+                    {correctOption && <Check size={22} />}
+                    {wrongSelected && <X size={22} />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className={answered ? 'feedback show' : 'feedback'} aria-live="polite">
+            {answered && (
+              <>
+                <strong>{isCorrect ? currentQuizWord.cheer : '다시 기억해봐요'}</strong>
+                <span>
+                  정답은 {currentQuizWord.word} · {currentQuizWord.meaning}
+                  {selectedAnswer && !isCorrect ? `, 고른 답은 ${selectedAnswer.word}` : ''}
+                </span>
+              </>
+            )}
+          </div>
+
+          <nav className="flow-actions" aria-label="퀴즈 이동">
+            <button className="secondary-button" type="button" onClick={goHome}>
+              <Home size={19} />
+              처음
+            </button>
+            <button className="primary-button primary-button--wide" type="button" onClick={nextQuiz} disabled={!answered}>
+              {quizIndex + 1 >= quizWords.length ? '결과 보기' : '다음 문제'}
+              <ChevronRight size={19} />
+            </button>
+          </nav>
+        </section>
+      )}
+
+      {mode === 'result' && result && (
+        <section className="result-screen">
+          <div className="result-hero">
+            <Trophy size={44} />
+            <p className="eyebrow">{result.lessonTitle} 결과</p>
+            <h1>{result.score}점</h1>
+            <div className="star-row" aria-label={`${result.stars}개 별`}>
+              {[0, 1, 2].map((index) => (
+                <Star key={index} size={34} fill={index < result.stars ? 'currentColor' : 'none'} />
+              ))}
+            </div>
+            <p>
+              {result.correctCount}/{result.totalCount}개 정답 · 최고 연속 {result.bestStreak}개
+            </p>
+          </div>
+
+          {result.missedWords.length > 0 ? (
+            <section className="missed-panel" aria-label="다시 볼 단어">
+              <h2>한 번 더 보면 좋은 단어</h2>
+              <div className="missed-list">
+                {result.missedWords.map((word) => (
+                  <button type="button" key={word.id} onClick={() => speak(word.word)}>
+                    <WordScene word={word} compact />
+                    <span>{word.word}</span>
+                    <small>{word.meaning}</small>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="perfect-panel">
+              <Check size={32} />
+              <h2>모두 맞혔어요</h2>
+              <p>다음 단계로 넘어갈 준비가 됐습니다.</p>
+            </section>
+          )}
+
+          <nav className="flow-actions" aria-label="결과 이동">
+            <button className="secondary-button" type="button" onClick={goHome}>
+              <Home size={19} />
+              단계 선택
+            </button>
+            <button className="secondary-button" type="button" onClick={retryMissed}>
+              <RotateCcw size={19} />
+              다시 보기
+            </button>
+            <button
+              className="primary-button primary-button--wide"
+              type="button"
+              onClick={() => openLesson((selectedLessonIndex + 1) % lessonGroups.length)}
+            >
+              다음 단계
+              <ArrowRight size={19} />
+            </button>
+          </nav>
+        </section>
+      )}
+    </main>
+  )
+}
+
+export default App
