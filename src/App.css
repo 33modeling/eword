@@ -532,10 +532,30 @@ button:focus-visible {
   overflow: hidden;
 }
 
-.quiz-picture p {
+.quiz-prompt {
+  display: grid;
+  gap: 8px;
   padding: 16px;
+}
+
+.quiz-prompt span {
+  color: #2f6d62;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.quiz-prompt strong {
+  color: #18312f;
+  font-size: clamp(34px, 7vw, 58px);
+  font-weight: 950;
+  line-height: 1.04;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.quiz-prompt p {
   color: #526b65;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.4;
 }
@@ -558,7 +578,7 @@ button:focus-visible {
   border-radius: 8px;
   background: #ffffff;
   color: #18312f;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 

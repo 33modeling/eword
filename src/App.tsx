@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { WordScene } from './components/WordScene'
-import { categories, lessonGroups, studyWords, wordById, type StudyWord } from './data/words'
+import { categories, lessonGroups, studyWords, targetWordCount, wordById, type StudyWord } from './data/words'
 
 type AppMode = 'home' | 'study' | 'quiz' | 'result'
 
@@ -152,22 +152,39 @@ function App() {
   const quizOptions = useMemo(() => {
     if (!currentQuizWord) return []
 
-    const sameGroup = studyWords.filter(
-      (word) => word.category === currentQuizWord.category && word.id !== currentQuizWord.id,
+    const picked = new Map<string, StudyWord>()
+    const addDistractors = (items: StudyWord[]) => {
+      items.forEach((word) => {
+        if (word.id !== currentQuizWord.id && !picked.has(word.id)) {
+          picked.set(word.id, word)
+        }
+      })
+    }
+
+    const lessonDistractors = shuffleWithSeed(
+      lessonWords.filter((word) => word.id !== currentQuizWord.id),
+      hashSeed(`${currentQuizWord.id}-${quizSeed}-lesson`),
     )
-    const otherWords = studyWords.filter(
-      (word) => word.category !== currentQuizWord.category && word.id !== currentQuizWord.id,
+    const categoryDistractors = shuffleWithSeed(
+      studyWords.filter((word) => word.category === currentQuizWord.category && word.id !== currentQuizWord.id),
+      hashSeed(`${currentQuizWord.id}-${quizSeed}-category`),
     )
-    const wrongAnswers = shuffleWithSeed(
-      [...sameGroup, ...otherWords],
-      hashSeed(`${currentQuizWord.id}-${quizSeed}`),
-    ).slice(0, 3)
+    const fallbackDistractors = shuffleWithSeed(
+      studyWords.filter((word) => word.id !== currentQuizWord.id),
+      hashSeed(`${currentQuizWord.id}-${quizSeed}-fallback`),
+    )
+
+    addDistractors(lessonDistractors.slice(0, 2))
+    addDistractors(categoryDistractors.slice(0, 8))
+    addDistractors(fallbackDistractors)
+
+    const wrongAnswers = Array.from(picked.values()).slice(0, 3)
 
     return shuffleWithSeed(
       [currentQuizWord, ...wrongAnswers],
       hashSeed(`${currentQuizWord.word}-${quizIndex}-${quizSeed}`),
     )
-  }, [currentQuizWord, quizIndex, quizSeed])
+  }, [currentQuizWord, lessonWords, quizIndex, quizSeed])
 
   const answered = selectedOptionId !== null
   const selectedAnswer = selectedOptionId ? wordById.get(selectedOptionId) : null
@@ -306,7 +323,7 @@ function App() {
               <p className="eyebrow">6세 첫 영어 단어장</p>
               <h1>보고, 듣고, 맞히는 단어 놀이</h1>
               <p>
-                {studyWords.length}개 일상 단어를 그림과 짧은 문장으로 먼저 익히고, 바로 4지선다 퀴즈로
+                목표 {targetWordCount}개 일상 단어를 그림과 짧은 문장으로 먼저 익히고, 바로 4지선다 퀴즈로
                 기억을 확인합니다.
               </p>
             </div>
@@ -321,8 +338,8 @@ function App() {
 
           <section className="stat-row" aria-label="학습 기록">
             <div>
-              <span>학습 단어</span>
-              <strong>{studyWords.length}</strong>
+              <span>목표 단어</span>
+              <strong>{targetWordCount}</strong>
             </div>
             <div>
               <span>완료 단계</span>
@@ -468,7 +485,7 @@ function App() {
           <div className="quiz-status">
             <div>
               <p className="eyebrow">그림 퀴즈</p>
-              <h1>어떤 단어일까요?</h1>
+              <h1>한국어에 맞는 영어는?</h1>
             </div>
             <div className="score-stack">
               <span>점수 {score}</span>
@@ -483,7 +500,11 @@ function App() {
           <div className="quiz-layout">
             <article className="quiz-picture">
               <WordScene word={currentQuizWord} />
-              <p>{answered ? currentQuizWord.koreanHint : '그림만 보고 맞는 영어 단어를 골라요.'}</p>
+              <div className="quiz-prompt">
+                <span>한국어 문제</span>
+                <strong>{currentQuizWord.meaning}</strong>
+                {answered && <p>{currentQuizWord.koreanHint}</p>}
+              </div>
             </article>
 
             <div className="option-grid">
@@ -508,7 +529,6 @@ function App() {
                     disabled={answered}
                   >
                     <span>{option.word}</span>
-                    {answered && <small>{option.meaning}</small>}
                     {correctOption && <Check size={22} />}
                     {wrongSelected && <X size={22} />}
                   </button>
@@ -522,7 +542,7 @@ function App() {
               <>
                 <strong>{isCorrect ? currentQuizWord.cheer : '다시 기억해봐요'}</strong>
                 <span>
-                  정답은 {currentQuizWord.word} · {currentQuizWord.meaning}
+                  정답은 {currentQuizWord.word} · 뜻은 {currentQuizWord.meaning}
                   {selectedAnswer && !isCorrect ? `, 고른 답은 ${selectedAnswer.word}` : ''}
                 </span>
               </>
