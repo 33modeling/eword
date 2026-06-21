@@ -183,7 +183,7 @@ h2 {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin: 18px 0;
 }
@@ -736,6 +736,10 @@ button:focus-visible {
   }
 
   .lesson-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

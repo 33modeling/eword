@@ -54,25 +54,31 @@ const defaultProgress: Progress = {
   lessonStars: {},
 }
 
+const lessonIds = new Set(lessonGroups.map((lesson) => lesson.id))
+
 function loadProgress(): Progress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultProgress
     const parsed = JSON.parse(raw) as Partial<Progress>
+    const lessonStars =
+      parsed.lessonStars && typeof parsed.lessonStars === 'object' && !Array.isArray(parsed.lessonStars)
+        ? Object.fromEntries(
+            Object.entries(parsed.lessonStars)
+              .filter(([key]) => lessonIds.has(key))
+              .map(([key, value]) => [key, Number(value) || 0]),
+          )
+        : {}
+    const completedLessonIds = Array.isArray(parsed.completedLessonIds)
+      ? parsed.completedLessonIds.filter((id): id is string => typeof id === 'string' && lessonIds.has(id))
+      : []
 
     return {
       bestScore: Number(parsed.bestScore) || 0,
-      totalStars: Number(parsed.totalStars) || 0,
+      totalStars: Object.values(lessonStars).reduce((total, current) => total + current, 0),
       attempts: Number(parsed.attempts) || 0,
-      lessonStars:
-        parsed.lessonStars && typeof parsed.lessonStars === 'object' && !Array.isArray(parsed.lessonStars)
-          ? Object.fromEntries(
-              Object.entries(parsed.lessonStars).map(([key, value]) => [key, Number(value) || 0]),
-            )
-          : {},
-      completedLessonIds: Array.isArray(parsed.completedLessonIds)
-        ? parsed.completedLessonIds.filter((id): id is string => typeof id === 'string')
-        : [],
+      lessonStars,
+      completedLessonIds,
     }
   } catch {
     return defaultProgress
@@ -300,7 +306,7 @@ function App() {
               <p className="eyebrow">6세 첫 영어 단어장</p>
               <h1>보고, 듣고, 맞히는 단어 놀이</h1>
               <p>
-                일상 동작 단어를 그림과 짧은 문장으로 먼저 익히고, 바로 4지선다 퀴즈로
+                {studyWords.length}개 일상 단어를 그림과 짧은 문장으로 먼저 익히고, 바로 4지선다 퀴즈로
                 기억을 확인합니다.
               </p>
             </div>
@@ -314,6 +320,10 @@ function App() {
           </div>
 
           <section className="stat-row" aria-label="학습 기록">
+            <div>
+              <span>학습 단어</span>
+              <strong>{studyWords.length}</strong>
+            </div>
             <div>
               <span>완료 단계</span>
               <strong>{progress.completedLessonIds.length}</strong>
@@ -473,7 +483,7 @@ function App() {
           <div className="quiz-layout">
             <article className="quiz-picture">
               <WordScene word={currentQuizWord} />
-              <p>{currentQuizWord.koreanHint}</p>
+              <p>{answered ? currentQuizWord.koreanHint : '그림만 보고 맞는 영어 단어를 골라요.'}</p>
             </article>
 
             <div className="option-grid">
@@ -498,7 +508,7 @@ function App() {
                     disabled={answered}
                   >
                     <span>{option.word}</span>
-                    <small>{option.meaning}</small>
+                    {answered && <small>{option.meaning}</small>}
                     {correctOption && <Check size={22} />}
                     {wrongSelected && <X size={22} />}
                   </button>
