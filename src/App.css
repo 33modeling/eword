@@ -1,4 +1,7 @@
 .app-shell {
+  --app-screen-padding: clamp(18px, 4vw, 34px);
+  --app-bottom-buffer: 28px;
+
   width: min(1120px, 100%);
   min-height: 100svh;
   margin: 0 auto;
@@ -90,7 +93,8 @@
 .study-screen,
 .quiz-screen,
 .result-screen {
-  padding: clamp(18px, 4vw, 34px);
+  padding: var(--app-screen-padding);
+  padding-bottom: calc(var(--app-screen-padding) + var(--app-bottom-buffer) + env(safe-area-inset-bottom, 0px));
 }
 
 .intro-band {
@@ -1551,6 +1555,11 @@ button:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    --app-screen-padding: 12px;
+    --app-bottom-buffer: 34px;
+  }
+
   .topbar {
     grid-template-columns: 42px 1fr auto;
     gap: 9px;
@@ -1559,13 +1568,6 @@ button:focus-visible {
 
   .brand span {
     display: none;
-  }
-
-  .home-screen,
-  .study-screen,
-  .quiz-screen,
-  .result-screen {
-    padding: 12px;
   }
 
   .intro-band {

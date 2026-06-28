@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import {
   ArrowRight,
   Award,
@@ -76,6 +77,12 @@ type ResultSummary = {
   unlockedMilestones: GoalMilestone[]
 }
 
+type NativeSpeechPlugin = {
+  speak: (options: { text: string; lang: string; rate: number; pitch: number }) => Promise<void>
+  stop: () => Promise<void>
+}
+
+const NativeSpeech = registerPlugin<NativeSpeechPlugin>('NativeSpeech')
 const STORAGE_KEY = 'eword-progress-v1'
 const XP_PER_LEVEL = 140
 const goalMilestones: GoalMilestone[] = [
@@ -241,7 +248,7 @@ function createQuizSeed() {
   return (Math.floor(Math.random() * 0xffffffff) ^ timestampSeed) >>> 0
 }
 
-function speak(text: string) {
+function speakWithWebSpeech(text: string) {
   if (!('speechSynthesis' in window)) return
 
   window.speechSynthesis.cancel()
@@ -250,6 +257,20 @@ function speak(text: string) {
   utterance.rate = 0.82
   utterance.pitch = 1.06
   window.speechSynthesis.speak(utterance)
+}
+
+function speak(text: string) {
+  if (Capacitor.getPlatform() === 'android') {
+    void NativeSpeech.speak({
+      text,
+      lang: 'en-US',
+      rate: 0.82,
+      pitch: 1.06,
+    }).catch(() => speakWithWebSpeech(text))
+    return
+  }
+
+  speakWithWebSpeech(text)
 }
 
 function getLessonWords(lessonIndex: number) {
